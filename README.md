@@ -119,6 +119,11 @@ npm run assets:brand         # favicons, the default OG image, inlined card asse
 node tools/preview-card.mjs  # renders both share cards into shots/
 ```
 
+The default OG image is a real frame of the first sector with the title on top, so
+`assets:brand` needs the dev server running. If you change the image, bump the `?v=` on
+its URL in `index.html`. X caches images by URL and will keep showing the old one
+otherwise.
+
 The favicon is the ship's 16x16 hull, not the whole 24x16 sprite. The sprite includes a
 thruster flame that turns into a smudge at 32px. Everything is built at a 16px base and
 scaled by whole numbers, so no icon is ever resampled.
