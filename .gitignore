@@ -1,0 +1,20 @@
+node_modules/
+dist/
+
+# Raw asset packs. Several prohibit redistribution, and the built sprites in
+# src/games/ionbreach/assets/ are what the game actually loads.
+assets-src*/
+*.zip
+*.rar
+_extract/
+
+# Test output. A few curated shots live in docs/screenshots/ instead.
+shots/
+
+# Local agent tooling, not part of the project.
+.agents/
+.claude/
+.vite/
+.vercel/
+.DS_Store
+skills-lock.json

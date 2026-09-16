@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#171310" />
+    <meta name="description" content="Ionbreach - a horizontal shoot 'em up across three sectors. Dodge, shoot, survive, in the browser." />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Ionbreach" />
+    <meta property="og:description" content="Three sectors. Three bosses. No continues." />
+    <meta property="og:image" content="./og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Ionbreach" />
+    <meta name="twitter:description" content="Three sectors. Three bosses. No continues." />
+    <meta name="twitter:image" content="./og.png" />
+    <meta name="twitter:creator" content="@pixelyokai" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Ionbreach</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+  </head>
+  <body>
+    <div class="screen" id="screen">
+      <canvas id="stage"></canvas>
+      <div class="overlay" id="overlay"></div>
+    </div>
+
+    <div class="scanlines" aria-hidden="true"></div>
+    <div class="gloom" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" id="grain" aria-hidden="true"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

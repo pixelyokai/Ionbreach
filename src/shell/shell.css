@@ -1,0 +1,213 @@
+/**
+ * The console. Everything here persists across cartridges: the page, the screen games are
+ * drawn into, and the CRT layers above it.
+ *
+ * The CRT treatment is a stack of fixed, full-viewport, pointer-events-none layers. No
+ * barrel distortion and nothing that resamples a pixel - games render at an integer scale
+ * and the tube is entirely in layers above them.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-pixel);
+  overscroll-behavior: none;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/*
+ * Sized by core/canvas.js: takes the window, clamped to the cartridge's aspect. The
+ * fallback matters - a route that mounts no cartridge (the 404) never calls that, and
+ * without a box of its own the overlay collapses and clips whatever panel is showing.
+ */
+.screen {
+  position: relative;
+  width: 100vw;
+  height: 100dvh;
+  background: #000;
+  isolation: isolate;
+}
+
+canvas#stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  background: var(--background);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* --- CRT ---------------------------------------------------------------------------- */
+
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  overflow: hidden;
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.scanlines::before,
+.scanlines::after {
+  content: '';
+  display: block;
+  position: absolute;
+  pointer-events: none;
+}
+
+/* One bar rolling up the screen, the way an out-of-sync tube drifts. */
+.scanlines::before {
+  width: 100%;
+  height: clamp(2px, 0.1vw, 3px);
+  background: rgb(0 0 0 / 0.7);
+  opacity: 0.8;
+  transform: translate3d(0, -10vh, 0);
+  will-change: transform;
+  animation: scanline-roll 8s linear infinite;
+}
+
+/* The comb. Stepped rather than eased so it jitters like a scan. */
+.scanlines::after {
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgb(0 0 0 / 0.3) 51%);
+  background-size: 100% 0.4vw;
+  animation: scanline-jitter 1s steps(60) infinite;
+}
+
+@keyframes scanline-roll {
+  0% { transform: translate3d(0, 110vh, 0); }
+  100% { transform: translate3d(0, -200vh, 0); }
+}
+
+@keyframes scanline-jitter {
+  0% { background-position: 0 50%; }
+}
+
+/**
+ * Bloom, dialled well below the reference: a real tube holds no hard edge, but this is
+ * pixel art and the render path exists to keep it crisp.
+ */
+.gloom {
+  position: fixed;
+  inset: 0;
+  z-index: 23;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.gloom::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.09;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+/**
+ * The tube's corners: a soft frame in the page colour stretched over the viewport, so the
+ * corners scale with the window. A clip cuts a hard edge; a tube fades into its mask over
+ * a dozen pixels, and that feather is most of what sells it.
+ */
+.vignette {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vignette::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('./crt-frame.png');
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  transform: scale(1.02);
+}
+
+/**
+ * Grain, composited normally rather than with an overlay blend: overlay scales with
+ * backdrop brightness and these games are dark, so an overlay layer measures 0.4/255 -
+ * invisible. Normal blending holds amplitude whatever is underneath.
+ */
+.grain {
+  position: fixed;
+  top: -10rem;
+  left: -10rem;
+  width: calc(100% + 20rem);
+  height: calc(100% + 20rem);
+  z-index: 101;
+  opacity: 0.085;
+  background-position: 50%;
+  pointer-events: none;
+  animation: grain 0.5s steps(1) infinite;
+}
+
+@keyframes grain {
+  0% { transform: translate3d(0, 9rem, 0); }
+  10% { transform: translate3d(-1rem, -4rem, 0); }
+  20% { transform: translate3d(-8rem, 2rem, 0); }
+  30% { transform: translate3d(9rem, -9rem, 0); }
+  40% { transform: translate3d(-2rem, 7rem, 0); }
+  50% { transform: translate3d(-9rem, -4rem, 0); }
+  60% { transform: translate3d(2rem, 6rem, 0); }
+  70% { transform: translate3d(7rem, -8rem, 0); }
+  80% { transform: translate3d(-9rem, 1rem, 0); }
+  90% { transform: translate3d(6rem, -5rem, 0); }
+  100% { transform: translate3d(-7rem, 0, 0); }
+}
+
+/* On a small screen the grain and bloom are only in the way; the corners stay. */
+@media (max-width: 720px) {
+  .grain,
+  .gloom {
+    display: none;
+  }
+
+  .scanlines::after {
+    background-size: 100% 0.4vh;
+  }
+
+  .scanlines::before {
+    opacity: 0.5;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .grain {
+    animation: none;
+    opacity: 0.06;
+  }
+
+  .scanlines::before {
+    display: none;
+  }
+
+  .scanlines::after {
+    animation: none;
+  }
+}

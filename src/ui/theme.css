@@ -1,0 +1,160 @@
+@import 'tailwindcss';
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/press-start-2p-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+2000-206F, U+2122, U+2191, U+2193, U+2212, U+FFFD;
+}
+
+/**
+ * 8bitcn's "dungeon torch" theme, dark variant, verbatim from the library's own
+ * globals.css. The token names are 8bitcn's (shadcn's, underneath) so the components
+ * copied from it work unmodified.
+ */
+:root {
+  --radius: 0rem;
+
+  --background: oklch(0.15 0.02 40);
+  --foreground: oklch(0.92 0.03 55);
+  --card: oklch(0.18 0.02 42);
+  --card-foreground: oklch(0.92 0.03 55);
+  --popover: oklch(0.15 0.02 40);
+  --popover-foreground: oklch(0.92 0.03 55);
+  --primary: oklch(0.7 0.15 55);
+  --primary-foreground: oklch(0.12 0.01 40);
+  --secondary: oklch(0.25 0.03 45);
+  --secondary-foreground: oklch(0.88 0.03 55);
+  --muted: oklch(0.22 0.02 42);
+  --muted-foreground: oklch(0.6 0.04 50);
+  --accent: oklch(0.65 0.12 45);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.55 0.2 25);
+  --border: oklch(0.3 0.03 45);
+  --input: oklch(0.3 0.03 45);
+  --ring: oklch(0.7 0.15 55);
+}
+
+@theme inline {
+  --font-pixel: 'Press Start 2P', ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /**
+   * The type scale starts at 13px and never dips below it. Press Start 2P has no
+   * lowercase and a tall x-height, so 13px is already the point where a glyph edge
+   * stops resolving cleanly on a standard display.
+   */
+  --text-xs: 13px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 40px;
+}
+
+@layer base {
+  /* The 8bit frame is drawn with 6px borders, so the pixel unit is 6 rather than 4. */
+  :root {
+    --px: 6px;
+  }
+
+  @media (max-width: 720px) {
+    :root {
+      --px: 5px;
+    }
+  }
+
+  *,
+  ::after,
+  ::before {
+    border-color: var(--border);
+  }
+}
+
+@layer components {
+  /**
+   * 8bitcn's own `.retro` class: the pixel face plus the letter-spacing and leading it
+   * is set in. Copied rather than approximated, because every component in the library
+   * assumes exactly this.
+   */
+  .retro {
+    font-family: var(--font-pixel);
+    line-height: 1.5;
+    letter-spacing: 0.5px;
+  }
+
+  .pixelated {
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  /**
+   * Panel texture. A flat fill next to pixel art reads as a hole in the picture, so the
+   * card gets a woven 3px grid - one light pass, one dark, offset by axis - plus a warm
+   * bloom from the top edge, as if the tube were lighting it.
+   *
+   * Gradients rather than a noise image: nothing to fetch, nothing to cache, and no
+   * data: URI to justify to the content security policy.
+   */
+  .panel-texture::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image:
+      repeating-linear-gradient(0deg, rgb(255 226 190 / 0.05) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgb(0 0 0 / 0.1) 0 1px, transparent 1px 4px),
+      radial-gradient(130% 70% at 50% 0%, rgb(255 186 104 / 0.1), transparent 62%),
+      linear-gradient(180deg, transparent 55%, rgb(0 0 0 / 0.16) 100%);
+  }
+
+  /**
+   * The wordmark: a vertical gold ramp clipped to the glyphs, a hard black offset under
+   * them and a soft torch glow around them. `text-fill-color` has to be cleared for the
+   * gradient to show through, and the last stop needs a sliver of padding or the line box
+   * crops it.
+   */
+  .title-plate {
+    background-image: linear-gradient(
+      180deg,
+      #fffdf4 0%,
+      #fff3cf 17%,
+      #ffdb7c 36%,
+      #f7bb38 52%,
+      #d6931a 70%,
+      #ac6c0e 87%,
+      #8d5609 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: 0.1em;
+    filter:
+      drop-shadow(0 0 2px rgb(0 0 0 / 0.75))
+      drop-shadow(0 3px 0 rgb(0 0 0 / 0.6))
+      drop-shadow(0 0 16px rgb(255 178 70 / 0.42));
+  }
+}

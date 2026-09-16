@@ -1,0 +1,24 @@
+{
+  "image": "boss-01.png",
+  "frameWidth": 108,
+  "frameHeight": 128,
+  "columns": 2,
+  "states": {
+    "normal": [
+      0,
+      1
+    ],
+    "damaged": [
+      2,
+      3
+    ],
+    "critical": [
+      4,
+      5
+    ],
+    "flash": [
+      6,
+      7
+    ]
+  }
+}
