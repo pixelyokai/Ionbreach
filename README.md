@@ -192,31 +192,6 @@ both wanted and unmuted, so someone who never turns sound on never downloads it.
 The built app is about 3.2 MB, and 2.4 MB of that is the music in two formats. The mp3 is
 a Safari fallback that no other browser fetches.
 
-## Tests
-
-```bash
-npm run dev                    # one terminal
-node tools/smoke.mjs ./shots   # another
-```
-
-It drives a real browser through the title screen, the menus, a run, a 404, and then
-mounts and unmounts the game five times while counting event listeners, animation frames
-and audio players. That last part is the bug this kind of architecture actually gets:
-leaking a listener every time you navigate.
-
-Three checks worth calling out:
-
-- Picking Hard and pressing Start is checked all the way down to `lives === 2` and
-  `speedScale === 1.5` in the live session. A settings screen that looks right and changes
-  nothing is the failure that matters.
-- The campaign section walks all three sectors through dev hooks. Reaching sector 3 by hand
-  is twenty minutes of play.
-- Teardown ends by calling a dev-only `unmount()` hook, because there is one route and it
-  falls back to itself. Without that there is no way to reach an unmounted state, and a
-  check that cannot reach zero proves nothing.
-
-35 checks, all passing.
-
 ![Scores](docs/screenshots/scores.png)
 
 ## Credits
