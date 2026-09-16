@@ -1,4 +1,5 @@
 import { FONT } from './_font.js';
+import { YOGA_WASM } from './_yoga.js';
 import { card, readRun, WIDTH, HEIGHT } from './_card.js';
 
 /**
@@ -13,6 +14,9 @@ import { card, readRun, WIDTH, HEIGHT } from './_card.js';
  * libraries, but outside Next.js it resolves to a build that the Edge runtime rejects and
  * that fails to load under Node as well.
  *
+ * satori's standalone build is used, and handed its layout engine directly. The default
+ * build finds yoga.wasm on disk by path, and Vercel's bundler did not ship it.
+ *
  * Both renderers are imported inside the handler rather than at the top of the file. A
  * native binary or WASM module that fails to load at the top level kills the function
  * before any code runs, and the only thing anyone sees is a bare 500. Loaded here, the
@@ -22,8 +26,11 @@ import { card, readRun, WIDTH, HEIGHT } from './_card.js';
 let renderers;
 
 async function load() {
-  renderers ??= Promise.all([import('satori'), import('@resvg/resvg-js')]).then(
-    ([satori, resvg]) => ({ satori: satori.default, Resvg: resvg.Resvg }),
+  renderers ??= Promise.all([import('satori/standalone'), import('@resvg/resvg-js')]).then(
+    async ([satori, resvg]) => {
+      await satori.init(YOGA_WASM);
+      return { satori: satori.default, Resvg: resvg.Resvg };
+    },
   );
   return renderers;
 }

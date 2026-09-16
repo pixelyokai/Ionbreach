@@ -10,7 +10,7 @@
     "test": "node tools/smoke.mjs",
     "assets:ionbreach": "node tools/ionbreach/build-assets.js",
     "assets:shell": "node tools/build-crt-frame.js",
-    "assets:brand": "node tools/build-brand.js && node tools/build-og.mjs && node tools/build-font-module.cjs"
+    "assets:brand": "node tools/build-brand.js && node tools/build-og.mjs && node tools/build-inline-assets.cjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
@@ -19,7 +19,7 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "satori": "^0.33.4",
+    "satori": "0.33.4",
     "tailwind-merge": "^3.3.1"
   },
   "devDependencies": {
