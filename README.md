@@ -68,7 +68,7 @@ the game draws.
 
 ```
 api/            two edge functions, for share cards
-docs/           the original brief and the space shooter spec
+docs/           the original spec and screenshots
 public/         favicons, the default OG image, the font satori needs
 tools/          asset builds and the test runner
 src/
@@ -79,9 +79,6 @@ src/
   ui/           React menus
   games/ionbreach/  the game itself
 ```
-
-`docs/ARCHITECTURE.md` is the brief I started from. It describes three games. Two of them
-were cut, so read it as history rather than as a description of this repo.
 
 Game art is imported through Vite and never put in `public/`. Some of the source packs do
 not allow you to redistribute the raw files, and a browsable asset folder is exactly that.

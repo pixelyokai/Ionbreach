@@ -23,7 +23,6 @@ const HULL = { x: 8, y: 0, size: 16 };
 
 const SIZES = [
   ['favicon-32.png', 2],
-  ['favicon-192.png', 12],
   ['apple-touch-icon.png', 12],
 ];
 

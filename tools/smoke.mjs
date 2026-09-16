@@ -122,7 +122,7 @@ const press = async (page, name) => {
   );
   check('the 404 names the path that was asked for', await page.getByText('/nowhere').isVisible());
 
-  await page.evaluate(() => { location.hash = '#/play/undersoil'; });
+  await page.evaluate(() => { location.hash = '#/play/not-a-game'; });
   await page.waitForTimeout(1000);
   check(
     'an unknown cartridge 404s too',
