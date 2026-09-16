@@ -40,9 +40,23 @@ const cspMeta = () => ({
   },
 });
 
+/**
+ * Crawlers ignore a relative og:image, so the page needs its own absolute address. Vercel
+ * sets VERCEL_PROJECT_PRODUCTION_URL on every build (a custom domain replaces it once one
+ * is assigned), which means nothing has to be configured by hand.
+ */
+const SITE_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
+  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+  : 'https://ionbreach.vercel.app';
+
+const siteUrl = () => ({
+  name: 'site-url',
+  transformIndexHtml: (html) => html.replaceAll('%SITE_URL%', SITE_URL),
+});
+
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss(), cspMeta()],
+  plugins: [react(), tailwindcss(), cspMeta(), siteUrl()],
   build: {
     target: 'es2022',
     assetsInlineLimit: 0,

@@ -1,6 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
+import { FONT } from './_font.js';
 import { card, readRun, WIDTH, HEIGHT } from './_card.js';
 
 /**
@@ -15,28 +13,30 @@ import { card, readRun, WIDTH, HEIGHT } from './_card.js';
  * libraries, but outside Next.js it resolves to a build that the Edge runtime rejects and
  * that fails to load under Node as well.
  *
- * The font is read from disk rather than fetched from the site. A fetch back to the
- * deployment's own origin goes through Vercel Authentication on preview deployments and
- * would come back as a login page.
+ * Both renderers are imported inside the handler rather than at the top of the file. A
+ * native binary or WASM module that fails to load at the top level kills the function
+ * before any code runs, and the only thing anyone sees is a bare 500. Loaded here, the
+ * failure is caught: the share still gets the static card, and the reason travels back in
+ * a header.
  */
-const FONT_URL = new URL('./_fonts/press-start-2p.ttf', import.meta.url);
+let renderers;
 
-// Held for the life of the instance, so a warm function renders without touching disk.
-let fontData;
-
-async function font() {
-  fontData ??= await readFile(FONT_URL);
-  return fontData;
+async function load() {
+  renderers ??= Promise.all([import('satori'), import('@resvg/resvg-js')]).then(
+    ([satori, resvg]) => ({ satori: satori.default, Resvg: resvg.Resvg }),
+  );
+  return renderers;
 }
 
 export async function GET(request) {
   const url = new URL(request.url);
 
   try {
+    const { satori, Resvg } = await load();
     const svg = await satori(card(readRun(url.searchParams)), {
       width: WIDTH,
       height: HEIGHT,
-      fonts: [{ name: 'Press Start 2P', data: await font(), weight: 400, style: 'normal' }],
+      fonts: [{ name: 'Press Start 2P', data: FONT, weight: 400, style: 'normal' }],
     });
     const png = new Resvg(svg, { fitTo: { mode: 'width', value: WIDTH } }).render().asPng();
 
@@ -48,8 +48,24 @@ export async function GET(request) {
       },
     });
   } catch (err) {
+    // A failed load leaves a rejected promise behind; drop it so the next request retries.
+    renderers = undefined;
     console.error('card render failed', err);
-    // A share that cannot render its card should still share something.
-    return Response.redirect(new URL('/og.png', url.origin), 302);
+
+    // A share that cannot render its card should still share something. The redirect is
+    // not cached, so a fixed deploy is picked up on the next request.
+    // Enough to diagnose from a curl, with server paths stripped out.
+    const reason = `${err?.code ?? err?.name ?? 'Error'}: ${err?.message ?? ''}`
+      .replace(/(?:[A-Za-z]:)?[\\/][^\s'"]+/g, '<path>')
+      .replace(/[^\x20-\x7e]/g, ' ')
+      .slice(0, 160);
+    return new Response(null, {
+      status: 302,
+      headers: {
+        location: new URL('/og.png', url.origin).href,
+        'cache-control': 'no-store',
+        'x-card-error': reason,
+      },
+    });
   }
 }

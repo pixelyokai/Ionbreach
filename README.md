@@ -146,9 +146,9 @@ libraries, but outside Next.js it resolves to a build the Edge runtime refuses t
 and that same build fails to load under plain Node too. Calling satori and resvg directly
 is less code and has nothing to go wrong in between.
 
-The font the card uses sits in `api/_fonts/` and is read from disk. Fetching it from the
-site itself would be simpler, but on preview deploys Vercel puts a login wall in front of
-the site, and the function would get the login page instead of a font.
+The font the card uses is inlined as base64 in `api/_font.js`, so the function has no file
+to find at runtime. Fetching it from the site would have been simpler, but on preview
+deploys Vercel puts a login page in front of the site, and the function would get that instead.
 
 The card layout is in `api/_card.js`. `node tools/preview-card.mjs` calls both endpoints
 directly and writes the cards to `shots/`, so what you look at locally is exactly what a

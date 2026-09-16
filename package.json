@@ -10,7 +10,7 @@
     "test": "node tools/smoke.mjs",
     "assets:ionbreach": "node tools/ionbreach/build-assets.js",
     "assets:shell": "node tools/build-crt-frame.js",
-    "assets:brand": "node tools/build-brand.js && node tools/build-og.mjs"
+    "assets:brand": "node tools/build-brand.js && node tools/build-og.mjs && node tools/build-font-module.cjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
