@@ -1,45 +1,37 @@
 /**
- * Renders the share card locally so it can actually be looked at, instead of only existing
- * on a deployed URL.
- *
- * Satori does the layout - the same call the edge function makes - and a headless browser
- * rasterises the SVG it returns. @vercel/og's own Node build cannot be imported here (its
- * bundle dynamic-requires "fs"), but every decision worth reviewing lives in the SVG, so
- * the preview and the deployed card agree on everything except the rasteriser.
+ * Renders both share cards by calling the real endpoints, so what lands in shots/ is
+ * byte-for-byte what a deploy would serve.
  *
  *   node tools/preview-card.mjs [outDir]
  */
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import satori from 'satori';
-import { chromium } from 'playwright';
-import { card, readRun, WIDTH, HEIGHT } from '../api/_card.js';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { GET as og } from '../api/og.js';
+import { GET as page } from '../api/s.js';
 
 const OUT = process.argv[2] ?? './shots';
 mkdirSync(OUT, { recursive: true });
 
-const font = readFileSync('public/press-start-2p.ttf');
-
+const ORIGIN = 'https://ionbreach.test';
 const CASES = [
   ['card-win', 'o=won&s=47250&d=hard&b=47250'],
   ['card-loss', 'o=lost&s=12750&k=2&d=hard&b=29475'],
 ];
 
-const browser = await chromium.launch({ channel: 'chrome' });
-const page = await browser.newPage({ viewport: { width: WIDTH, height: HEIGHT } });
+let failed = false;
 
 for (const [name, query] of CASES) {
-  const svg = await satori(card(readRun(new URLSearchParams(query))), {
-    width: WIDTH,
-    height: HEIGHT,
-    fonts: [{ name: 'Press Start 2P', data: font, weight: 400, style: 'normal' }],
-  });
-  writeFileSync(`${OUT}/${name}.svg`, svg);
-  await page.setContent(
-    `<style>*{margin:0}body{width:${WIDTH}px;height:${HEIGHT}px}</style>${svg}`,
-    { waitUntil: 'load' },
-  );
-  await page.screenshot({ path: `${OUT}/${name}.png` });
-  console.log(`${OUT}/${name}.png  ${WIDTH}x${HEIGHT}`);
+  const res = await og(new Request(`${ORIGIN}/api/og?${query}`));
+  const body = Buffer.from(await res.arrayBuffer());
+  const png = res.status === 200 && body.subarray(1, 4).toString() === 'PNG';
+  if (png) writeFileSync(`${OUT}/${name}.png`, body);
+  else failed = true;
+  console.log(`${png ? 'ok  ' : 'FAIL'}  /api/og  ${name}  ${res.status}  ${Math.round(body.length / 1024)} kB`);
+
+  const html = await (await page(new Request(`${ORIGIN}/s?${query}`))).text();
+  const image = html.match(/og:image" content="([^"]*)"/)?.[1] ?? '';
+  const pointsAtCard = image.startsWith(`${ORIGIN}/api/og?`);
+  if (!pointsAtCard) failed = true;
+  console.log(`${pointsAtCard ? 'ok  ' : 'FAIL'}  /s       ${name}  og:image -> ${image}`);
 }
 
-await browser.close();
+process.exit(failed ? 1 : 0);

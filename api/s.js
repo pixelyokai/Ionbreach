@@ -8,13 +8,11 @@ import { readRun, shareCopy } from './_card.js';
  * not execute - so a redirect here would hand the crawler the game's generic card instead
  * of this run's.
  */
-export const config = { runtime: 'edge' };
-
 const escape = (s) =>
   String(s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 
-export default function handler(request) {
+export function GET(request) {
   const url = new URL(request.url);
   const run = readRun(url.searchParams);
   const { title, description } = shareCopy(run);

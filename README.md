@@ -67,9 +67,9 @@ the game draws.
 ## Layout
 
 ```
-api/            two edge functions, for share cards
+api/            two serverless functions, for share cards
 docs/           the original spec and screenshots
-public/         favicons, the default OG image, the font satori needs
+public/         favicons and the default OG image
 tools/          asset builds and the test runner
 src/
   main.js       boots the shell and the router
@@ -82,8 +82,8 @@ src/
 
 Game art is imported through Vite and never put in `public/`. Some of the source packs do
 not allow you to redistribute the raw files, and a browsable asset folder is exactly that.
-The favicons and the share card font are the exception, because a crawler has to be able
-to fetch them at a fixed path.
+The favicons and the default OG image are the exception, because a browser or a crawler
+has to be able to fetch them at a fixed path.
 
 ## Adding a sector
 
@@ -131,20 +131,31 @@ The share button posts to X with a card showing that run's score, sector and dif
 
 This needs a server. X fetches whatever URL you share, reads the meta tags, and does not
 run any JavaScript, so a card with your score on it cannot come from a static file. Two
-edge functions handle it:
+small functions handle it:
 
 - `/s?o=won&s=47250&k=3&d=hard&b=47250` is the page X reads. Meta tags, then a script that
   sends a person on to the game.
-- `/api/og?...` draws the card with `@vercel/og`.
+- `/api/og?...` draws the card. `satori` lays it out as SVG and `@resvg/resvg-js` turns
+  that into a PNG.
 
 `/s` forwards people with a script instead of an HTTP redirect on purpose. A crawler does
 not run scripts, so a redirect would hand it the game's generic card instead of your run.
 
-The card layout is in `api/_card.js`, kept apart from the endpoint so
-`node tools/preview-card.mjs` can render both versions locally. A card you can only see
-after deploying is a card nobody looks at. Satori is not a browser: flexbox and text, no
-filters, no `background-clip`, no pseudo-elements, and anything with more than one child
-needs `display: flex` spelled out.
+Both run on Vercel's Node runtime. I started with `@vercel/og`, which wraps the same two
+libraries, but outside Next.js it resolves to a build the Edge runtime refuses to deploy,
+and that same build fails to load under plain Node too. Calling satori and resvg directly
+is less code and has nothing to go wrong in between.
+
+The font the card uses sits in `api/_fonts/` and is read from disk. Fetching it from the
+site itself would be simpler, but on preview deploys Vercel puts a login wall in front of
+the site, and the function would get the login page instead of a font.
+
+The card layout is in `api/_card.js`. `node tools/preview-card.mjs` calls both endpoints
+directly and writes the cards to `shots/`, so what you look at locally is exactly what a
+deploy serves. A card you can only see after deploying is a card nobody looks at.
+
+Satori is not a browser. It does flexbox and text: no filters, no `background-clip`, no
+pseudo-elements, and anything with more than one child needs `display: flex` spelled out.
 
 Anyone can call these endpoints with anything, so every parameter is clamped or mapped to a
 known value. The worst a hand-written URL gets you is a dull card.
@@ -174,10 +185,8 @@ run log is treated as untrusted input. `core/runlog.js` shape-checks and clamps 
 it reads back and `RunLog` clamps how wide a score can render. Editing a score by hand
 changes your own personal best and nothing else.
 
-`npm audit` flags a moderate issue in `fflate`, pulled in by `@vercel/og` through `satori`.
-The affected code path is `unzipSync` on a broken archive. The only font this project hands
-to satori is its own TTF from its own origin, and no query parameter reaches that code.
-There is no fix that does not mean downgrading `@vercel/og`.
+`satori` depends on an older `fflate` with a known bug. `package.json` overrides it to a
+fixed version, so `npm audit` comes back clean.
 
 ## Size
 

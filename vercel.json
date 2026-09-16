@@ -44,5 +44,12 @@
       "source": "/s",
       "destination": "/api/s"
     }
-  ]
+  ],
+  "functions": {
+    "api/og.js": {
+      "includeFiles": "api/_fonts/**",
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  }
 }
