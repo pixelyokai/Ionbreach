@@ -1,4 +1,6 @@
+import Module, { createRequire } from 'node:module';
 import { FONT } from './_font.js';
+import { HB_WASM } from './_harfbuzz.js';
 import { YOGA_WASM } from './_yoga.js';
 import { card, readRun, WIDTH, HEIGHT } from './_card.js';
 
@@ -14,8 +16,9 @@ import { card, readRun, WIDTH, HEIGHT } from './_card.js';
  * libraries, but outside Next.js it resolves to a build that the Edge runtime rejects and
  * that fails to load under Node as well.
  *
- * satori's standalone build is used, and handed its layout engine directly. The default
- * build finds yoga.wasm on disk by path, and Vercel's bundler did not ship it.
+ * satori needs two WASM modules, and both normally find their .wasm file on disk by path,
+ * which Vercel's bundler cannot see and so does not ship. Both are handed their bytes
+ * instead: yoga through satori's standalone build, HarfBuzz through `seedHarfBuzz`.
  *
  * Both renderers are imported inside the handler rather than at the top of the file. A
  * native binary or WASM module that fails to load at the top level kills the function
@@ -32,8 +35,33 @@ const step = (name, work) => {
   return work();
 };
 
+const require = createRequire(import.meta.url);
+
+/**
+ * satori imports `harfbuzzjs`, whose entry point starts HarfBuzz with no options and so
+ * reads hb.wasm from its own folder. There is no hook to pass the bytes through satori.
+ *
+ * Node checks its module cache before loading a CommonJS file, including when an ES module
+ * imports it. So the entry point's cache slot is filled first with the same promise it
+ * would have exported, built from the inlined WASM, and satori picks that up instead.
+ */
+function seedHarfBuzz() {
+  const entry = require.resolve('harfbuzzjs');
+  if (require.cache[entry]) return;
+
+  const createHarfBuzz = require('harfbuzzjs/hb.js');
+  const hbjs = require('harfbuzzjs/hbjs.js');
+
+  const mod = new Module(entry);
+  mod.filename = entry;
+  mod.loaded = true;
+  mod.exports = createHarfBuzz({ wasmBinary: HB_WASM }).then(hbjs);
+  require.cache[entry] = mod;
+}
+
 function load() {
   renderers ??= (async () => {
+    step('init harfbuzz', seedHarfBuzz);
     const satori = await step('import satori', () => import('satori/standalone'));
     await step('init yoga', () => satori.init(YOGA_WASM));
     const { Resvg } = await step('import resvg', () => import('@resvg/resvg-js'));
@@ -77,8 +105,9 @@ export async function GET(request) {
       },
     });
   } catch (err) {
-    // A failed load leaves a rejected promise behind; drop it so the next request retries.
+    // A failed load leaves rejected promises behind; drop them so the next request retries.
     renderers = undefined;
+    delete require.cache[require.resolve('harfbuzzjs')];
     console.error('card render failed', err);
 
     // A share that cannot render its card should still share something. The redirect is

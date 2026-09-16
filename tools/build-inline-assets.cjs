@@ -2,18 +2,19 @@
  * Inlines the binary files the share-card function needs into plain JS modules.
  *
  * The function never reads a file at runtime. Vercel's bundler decides what to ship by
- * reading the code, and it misses files loaded by path: satori's yoga.wasm was left out of
- * the first deploy, and the card failed with ENOENT inside the WASM loader. A base64 string
+ * reading the code, and it misses files loaded by path: satori's yoga.wasm and harfbuzzjs's
+ * hb.wasm were both left out, and the card failed with ENOENT inside the WASM loader. A base64 string
  * inside an imported module cannot be left behind.
  *
- * yoga.wasm has to match the satori JavaScript that loads it, so satori is pinned to an
- * exact version in package.json. Re-run this after changing that version.
+ * Each WASM file has to match the JavaScript that loads it, so satori is pinned to an exact
+ * version in package.json. Re-run this after changing it.
  *
  *   node tools/build-inline-assets.cjs
  */
 const fs = require('fs');
 
 const satoriVersion = require('satori/package.json').version;
+const hbVersion = require('harfbuzzjs/package.json').version;
 
 const ASSETS = [
   {
@@ -28,6 +29,13 @@ const ASSETS = [
     name: 'YOGA_WASM',
     about: `The yoga layout engine that satori ${satoriVersion} runs on.`,
     label: `satori@${satoriVersion}/yoga.wasm`,
+  },
+  {
+    out: 'api/_harfbuzz.js',
+    src: require.resolve('harfbuzzjs/hb.wasm'),
+    name: 'HB_WASM',
+    about: `HarfBuzz, the text shaper satori ${satoriVersion} uses, from harfbuzzjs@${hbVersion}.`,
+    label: `harfbuzzjs@${hbVersion}/hb.wasm`,
   },
 ];
 
