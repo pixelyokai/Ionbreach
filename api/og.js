@@ -24,28 +24,50 @@ import { card, readRun, WIDTH, HEIGHT } from './_card.js';
  * a header.
  */
 let renderers;
+let stage = 'start';
 
-async function load() {
-  renderers ??= Promise.all([import('satori/standalone'), import('@resvg/resvg-js')]).then(
-    async ([satori, resvg]) => {
-      await satori.init(YOGA_WASM);
-      return { satori: satori.default, Resvg: resvg.Resvg };
-    },
-  );
+/** Records the step about to run, so a failure reports where it happened, not just what. */
+const step = (name, work) => {
+  stage = name;
+  return work();
+};
+
+function load() {
+  renderers ??= (async () => {
+    const satori = await step('import satori', () => import('satori/standalone'));
+    await step('init yoga', () => satori.init(YOGA_WASM));
+    const { Resvg } = await step('import resvg', () => import('@resvg/resvg-js'));
+    return { satori: satori.default, Resvg };
+  })();
   return renderers;
 }
+
+const SLASH = /[\\/]/;
+const PATH = /(?:[A-Za-z]:)?(?:[\\/][^\s'"\\/]+)+/g;
+
+/** Enough to diagnose from a curl: file names are kept, the directories above them are not. */
+const describe = (err) =>
+  `[${stage}] ${err?.code ?? err?.name ?? 'Error'}: ${err?.message ?? ''}`
+    .replace(PATH, (p) => `.../${p.split(SLASH).pop()}`)
+    .replace(/[^\x20-\x7e]/g, ' ')
+    .slice(0, 200);
 
 export async function GET(request) {
   const url = new URL(request.url);
 
   try {
     const { satori, Resvg } = await load();
-    const svg = await satori(card(readRun(url.searchParams)), {
-      width: WIDTH,
-      height: HEIGHT,
-      fonts: [{ name: 'Press Start 2P', data: FONT, weight: 400, style: 'normal' }],
-    });
-    const png = new Resvg(svg, { fitTo: { mode: 'width', value: WIDTH } }).render().asPng();
+
+    const svg = await step('layout', () =>
+      satori(card(readRun(url.searchParams)), {
+        width: WIDTH,
+        height: HEIGHT,
+        fonts: [{ name: 'Press Start 2P', data: FONT, weight: 400, style: 'normal' }],
+      }),
+    );
+    const png = step('rasterise', () =>
+      new Resvg(svg, { fitTo: { mode: 'width', value: WIDTH } }).render().asPng(),
+    );
 
     return new Response(png, {
       headers: {
@@ -61,17 +83,12 @@ export async function GET(request) {
 
     // A share that cannot render its card should still share something. The redirect is
     // not cached, so a fixed deploy is picked up on the next request.
-    // Enough to diagnose from a curl, with server paths stripped out.
-    const reason = `${err?.code ?? err?.name ?? 'Error'}: ${err?.message ?? ''}`
-      .replace(/(?:[A-Za-z]:)?[\\/][^\s'"]+/g, '<path>')
-      .replace(/[^\x20-\x7e]/g, ' ')
-      .slice(0, 160);
     return new Response(null, {
       status: 302,
       headers: {
         location: new URL('/og.png', url.origin).href,
         'cache-control': 'no-store',
-        'x-card-error': reason,
+        'x-card-error': describe(err),
       },
     });
   }
