@@ -32,6 +32,8 @@ export function createViewport(canvas, ctx, resolution) {
   } = resolution ?? {};
 
   const view = { w: 0, h: 0, scale: 1, inset: { top: 0, right: 0, bottom: 0, left: 0 } };
+  // Cached: a touch drag asks for it on every pointer move, faster than frames arrive.
+  let unitsPerPx = 1;
   const listeners = new Set();
   const host = canvas.parentElement;
   const mobile = window.matchMedia(MOBILE_QUERY);
@@ -97,6 +99,7 @@ export function createViewport(canvas, ctx, resolution) {
 
     canvas.width = w * scale;
     canvas.height = h * scale;
+    unitsPerPx = w / boxW;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
     ctx.imageSmoothingEnabled = false;
 
@@ -133,8 +136,7 @@ export function createViewport(canvas, ctx, resolution) {
     },
     /** View units per CSS pixel, so a finger's travel can be converted without an origin. */
     unitsPerPixel() {
-      const r = canvas.getBoundingClientRect();
-      return r.width ? view.w / r.width : 1;
+      return unitsPerPx;
     },
     destroy() {
       observer.disconnect();

@@ -3,7 +3,7 @@ import './shell/shell.css';
 
 import { createRouter } from './core/router.js';
 import { mountCartridge } from './core/cartridge.js';
-import { unlock as unlockAudio, liveMixers, isMuted } from './core/audio.js';
+import { unlock as unlockAudio, heal as healAudio, liveMixers, isMuted } from './core/audio.js';
 import { startGrain } from './shell/grain.js';
 import { createUiBridge } from './ui/bridge.js';
 import { mountUi } from './ui/root.jsx';
@@ -17,10 +17,16 @@ const ui = createUiBridge();
 mountUi(document.getElementById('overlay'), ui);
 startGrain(document.getElementById('grain'));
 
-// Any gesture is a valid audio unlock gate, not just a specific button.
-const onFirstGesture = () => unlockAudio();
-window.addEventListener('pointerdown', onFirstGesture, { once: true });
-window.addEventListener('keydown', onFirstGesture, { once: true });
+// Any gesture is a valid audio unlock gate, not just a specific button. Every gesture
+// after that also restarts anything iOS has silenced; see heal() in core/audio.js.
+// pointerup as well as pointerdown, because older iOS only honours the end of a touch.
+const onGesture = () => {
+  unlockAudio();
+  healAudio();
+};
+window.addEventListener('pointerdown', onGesture);
+window.addEventListener('pointerup', onGesture);
+window.addEventListener('keydown', onGesture);
 
 // iOS Safari ignores user-scalable=no; without this a pinch zooms the whole console.
 document.addEventListener('gesturestart', (e) => e.preventDefault());

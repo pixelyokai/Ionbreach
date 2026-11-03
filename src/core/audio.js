@@ -1,14 +1,22 @@
 /**
- * SFX and music over HTML5 Audio.
+ * SFX over Web Audio, music over HTML5 Audio.
  *
- * Each effect keeps a small ring of clones so several can overlap without cutting each
- * other off, and a per-sound cooldown stops a dense frame from stacking copies into a
- * clipping mess. Mute is global and persists across cartridges.
+ * Effects are decoded once into buffers and fired as one-shot sources. They used to be
+ * rings of <audio> clones, and on iOS rewinding and replaying a media element several
+ * times a second stalls the main thread - the game hitched on every shot. The clones are
+ * kept only as a fallback where Web Audio is missing or a file will not decode.
+ *
+ * Each effect caps how many copies overlap, and a per-sound cooldown stops a dense frame
+ * from stacking copies into a clipping mess. Music stays a streamed element: it is a
+ * megabyte that would otherwise have to be decoded whole before the first note.
+ *
+ * Mute is global and persists across cartridges.
  */
 const MUTE_KEY = 'ionbreach.muted';
 
 let globallyMuted = readMuted();
 let unlocked = false;
+let context = null;
 const mixers = new Set();
 const muteListeners = new Set();
 
@@ -33,8 +41,21 @@ export function setMuted(value) {
   } catch {
     /* storage unavailable; the setting just does not persist */
   }
+  applySession();
   for (const m of mixers) m.applyMute();
   for (const fn of muteListeners) fn(globallyMuted);
+}
+
+/**
+ * iOS files Web Audio under the ringer switch unless the page asks to be a player. Only
+ * asked while sound is on, so a muted game never cuts off whatever else the phone plays.
+ */
+function applySession() {
+  try {
+    if (navigator.audioSession) navigator.audioSession.type = globallyMuted ? 'auto' : 'playback';
+  } catch {
+    /* not supported; the default session is used */
+  }
 }
 
 export function onMuteChange(fn) {
@@ -46,7 +67,26 @@ export function onMuteChange(fn) {
 export function unlock() {
   if (unlocked) return;
   unlocked = true;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  try {
+    context = Ctx ? new Ctx() : null;
+  } catch {
+    context = null;
+  }
+  applySession();
   for (const m of mixers) m.primeVoices();
+}
+
+/**
+ * Called on every gesture, not just the first. iOS suspends the audio context and pauses
+ * media elements on its own - an interruption, a lock, a notification - and neither comes
+ * back by itself. A gesture is the only moment a page is allowed to restart them, so each
+ * tap (the RESUME button included) puts back whatever should be playing.
+ */
+export function heal() {
+  if (!unlocked) return;
+  if (context && context.state !== 'running') context.resume().catch(() => {});
+  for (const m of mixers) m.healMusic();
 }
 
 export function isUnlocked() {
@@ -69,17 +109,58 @@ export function createMixer(manifest = {}) {
   for (const [name, def] of Object.entries(manifest.sfx ?? {})) {
     const { src, volume = 0.35, voices: count = 3, cooldown = 0.04 } = def;
     voices.set(name, {
+      src,
       index: 0,
       volume,
       cooldown,
-      els: Array.from({ length: count }, () => {
-        const a = new Audio(src);
-        a.preload = unlocked ? 'auto' : 'none';
-        a.volume = volume;
-        return a;
-      }),
+      count,
+      buffer: null,
+      loading: false,
+      failed: false,
+      gain: null,
+      live: new Set(),
+      // Fallback clones, made only if Web Audio cannot play this sound.
+      els: null,
     });
     lastPlayed.set(name, 0);
+  }
+
+  /** Fetches and decodes one effect. A failure drops that effect to the element path. */
+  function load(v) {
+    if (v.loading || v.buffer || v.failed) return;
+    if (!context) {
+      v.failed = true;
+      return;
+    }
+    v.loading = true;
+    fetch(v.src)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((data) => context.decodeAudioData(data))
+      .then((buffer) => {
+        if (destroyed) return;
+        v.buffer = buffer;
+        v.gain = context.createGain();
+        v.gain.gain.value = v.volume;
+        v.gain.connect(context.destination);
+      })
+      .catch(() => {
+        v.failed = true;
+      })
+      .finally(() => {
+        v.loading = false;
+      });
+  }
+
+  function fallbackEls(v) {
+    if (!v.els) {
+      v.els = Array.from({ length: v.count }, () => {
+        const a = new Audio(v.src);
+        a.preload = 'auto';
+        a.volume = v.volume;
+        return a;
+      });
+    }
+    return v.els;
   }
 
   let onMusicError = null;
@@ -114,8 +195,26 @@ export function createMixer(manifest = {}) {
       const now = performance.now() / 1000;
       if (now - lastPlayed.get(name) < v.cooldown) return;
       lastPlayed.set(name, now);
-      const el = v.els[v.index];
-      v.index = (v.index + 1) % v.els.length;
+
+      if (v.buffer) {
+        if (context.state !== 'running' || v.live.size >= v.count) return;
+        const source = context.createBufferSource();
+        source.buffer = v.buffer;
+        source.connect(v.gain);
+        source.onended = () => {
+          v.live.delete(source);
+          source.disconnect();
+        };
+        v.live.add(source);
+        source.start();
+        return;
+      }
+
+      // Still decoding: dropping one early shot is better than racing the decoder.
+      if (!v.failed) return;
+      const els = fallbackEls(v);
+      const el = els[v.index];
+      v.index = (v.index + 1) % els.length;
       el.currentTime = 0;
       el.play().catch(() => {});
     },
@@ -139,13 +238,14 @@ export function createMixer(manifest = {}) {
       else if (musicWanted && unlocked) music.play().catch(() => {});
     },
 
+    /** Restarts the track if the system paused it behind our back. */
+    healMusic() {
+      if (destroyed || !music || !musicWanted || globallyMuted || !unlocked) return;
+      if (music.paused) music.play().catch(() => {});
+    },
+
     primeVoices() {
-      for (const v of voices.values()) {
-        for (const el of v.els) {
-          el.preload = 'auto';
-          el.play().then(() => { el.pause(); el.currentTime = 0; }).catch(() => {});
-        }
-      }
+      for (const v of voices.values()) load(v);
       if (musicWanted) mixer.startMusic();
     },
 
@@ -153,7 +253,18 @@ export function createMixer(manifest = {}) {
       destroyed = true;
       mixers.delete(mixer);
       for (const v of voices.values()) {
-        for (const el of v.els) {
+        for (const source of v.live) {
+          source.onended = null;
+          try {
+            source.stop();
+          } catch {
+            /* already finished */
+          }
+          source.disconnect();
+        }
+        v.live.clear();
+        v.gain?.disconnect();
+        for (const el of v.els ?? []) {
           el.pause();
           el.removeAttribute('src');
           el.load();
