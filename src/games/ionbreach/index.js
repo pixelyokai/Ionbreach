@@ -50,7 +50,8 @@ function showTitle() {
   show('title', {
     tagline: 'Dodge. Shoot. Survive. Repeat.',
     difficultyName: difficulty.name,
-    hints: services.input.state.usingTouch
+    // A phone has not been touched yet when the title first draws, so ask the pointer too.
+    hints: services.input.state.usingTouch || matchMedia('(pointer: coarse)').matches
       ? ['Drag anywhere to fly', 'Fire is automatic']
       : ['Arrow keys / WASD to move', 'Fire is automatic · P to pause'],
     onStart: () => {
@@ -101,6 +102,14 @@ function showScores() {
 
 function begin() {
   startRun(game);
+}
+
+function showPlaying() {
+  show('playing', {
+    onPause: () => {
+      if (game.screen === SCREEN.PLAYING) togglePause(game);
+    },
+  });
 }
 
 function showPause() {
@@ -205,6 +214,7 @@ const PANEL_FOR = {
   [SCREEN.TITLE]: showTitle,
   [SCREEN.DIFFICULTY]: showDifficulty,
   [SCREEN.SCORES]: showScores,
+  [SCREEN.PLAYING]: showPlaying,
   [SCREEN.PAUSED]: showPause,
   [SCREEN.OVER]: () => showResult(false),
   [SCREEN.VICTORY]: () => showResult(true),
@@ -246,8 +256,8 @@ export default {
     ctx = s.ctx;
     attach(s);
 
-    syncView(s.view.w, s.view.h);
-    unsubscribeResize = s.viewport.onResize((v) => syncView(v.w, v.h));
+    syncView(s.view);
+    unsubscribeResize = s.viewport.onResize(syncView);
 
     ctx.fillStyle = '#1a1a1a';
     ctx.fillRect(0, 0, VIEW_W, VIEW_H);

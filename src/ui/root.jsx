@@ -40,7 +40,7 @@ function Screen({ title, subtitle, children, footer = true, className, titleClas
   return (
     <Card
       className={cn('pointer-events-auto w-[min(92vw,620px)]', className)}
-      innerClassName="gap-8 px-10 py-10"
+      innerClassName="gap-8 px-10 py-10 max-sm:gap-6 max-sm:px-5 max-sm:py-7 short:gap-4 short:py-6"
     >
       <div className="flex flex-col items-center gap-2">
         <CardTitle as="h1" className={cn('title-plate text-2xl tracking-wide', titleClassName)}>
@@ -63,13 +63,13 @@ function Screen({ title, subtitle, children, footer = true, className, titleClas
  * between the group and whatever sits above and below it.
  */
 const Stack = ({ className, children }) => (
-  <div className={cn('flex w-full flex-col gap-6 py-4', className)}>{children}</div>
+  <div className={cn('flex w-full flex-col gap-6 py-4 short:py-2', className)}>{children}</div>
 );
 
 function Title({ tagline, hints = [], difficultyName, onStart, onDifficulty, onScores }) {
   const muted = useMuted();
   return (
-    <Screen title="IONBREACH" subtitle={tagline} titleClassName="text-3xl">
+    <Screen title="IONBREACH" subtitle={tagline} titleClassName="text-3xl max-sm:text-[28px]">
       <Stack>
         <MenuButton variant="default" onClick={onStart} autoFocus>
           START
@@ -295,7 +295,7 @@ function NotFound({ path, onHome }) {
   return (
     <Card
       className="pointer-events-auto w-[min(92vw,620px)]"
-      innerClassName="gap-6 px-10 py-12"
+      innerClassName="gap-6 px-10 py-12 max-sm:px-5 max-sm:py-8 short:gap-4 short:py-6"
     >
       <p className="retro title-plate m-0 text-[64px] leading-none">404</p>
 
@@ -353,6 +353,29 @@ function ErrorPanel({ message, onBack }) {
   );
 }
 
+/**
+ * The in-run control. A phone has no P key, so this is the only way into the pause menu
+ * there - and from it, back to the title. It is drawn on mobile only (`touch-only` in
+ * shell.css): a desktop player has the key, and the button would sit on the HUD for
+ * nothing.
+ */
+function Playing({ onPause }) {
+  return (
+    <Button
+      size="icon"
+      aria-label="Pause"
+      onClick={onPause}
+      className="touch-only pointer-events-auto fixed left-1/2 -translate-x-1/2 opacity-80"
+      style={{ top: 'max(10px, calc(var(--safe-top) + 6px))' }}
+    >
+      <span aria-hidden="true" className="flex gap-1.5">
+        <span className="h-4 w-1.5 bg-current" />
+        <span className="h-4 w-1.5 bg-current" />
+      </span>
+    </Button>
+  );
+}
+
 /** Panels that are not modals, and so have no Radix overlay to dim the field for them. */
 const NEEDS_BACKDROP = new Set(['title', 'difficulty', 'scores', 'loading', 'error', 'notFound']);
 
@@ -360,6 +383,7 @@ const PANELS = {
   title: Title,
   difficulty: Difficulty,
   scores: Scores,
+  playing: Playing,
   pause: Pause,
   result: Result,
   loading: Loading,
@@ -378,12 +402,15 @@ function Overlay({ bridge }) {
     console.warn(`unknown ui panel "${panel}"`);
     return null;
   }
+  // A panel taller than the screen (a phone held sideways) scrolls inside the overlay; the
+  // page itself never does. `m-auto` rather than grid centring, which would push the top of
+  // an overflowing panel out of reach.
   return (
-    <div className="pointer-events-none absolute inset-0 z-[2] grid place-items-center overflow-y-auto p-4">
+    <div className="pointer-events-none absolute inset-0 z-[2] flex touch-pan-y overflow-y-auto overscroll-contain p-4">
       {NEEDS_BACKDROP.has(panel) && (
-        <div aria-hidden="true" className="absolute inset-0 bg-background/75" />
+        <div aria-hidden="true" className="fixed inset-0 bg-background/75" />
       )}
-      <div className="relative">
+      <div className="relative m-auto">
         <Panel {...props} />
       </div>
     </div>

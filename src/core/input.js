@@ -7,7 +7,10 @@
  */
 const DEFAULT_BUFFER = 0.12;
 
-export function createInput(canvas, toView, { bindings = {}, bufferTime = DEFAULT_BUFFER } = {}) {
+// A little over 1:1, so a short thumb stroke crosses the field without running off the glass.
+const TOUCH_SENSITIVITY = 1.3;
+
+export function createInput(canvas, viewport, { bindings = {}, bufferTime = DEFAULT_BUFFER } = {}) {
   const keyToActions = new Map();
   for (const [action, keys] of Object.entries(bindings)) {
     for (const key of keys) {
@@ -20,7 +23,13 @@ export function createInput(canvas, toView, { bindings = {}, bufferTime = DEFAUL
   const pressed = new Set();
   const buffered = new Map();
 
-  const pointer = { active: false, set: false, x: 0, y: 0, id: null };
+  /**
+   * Touch is relative, like a trackpad: a drag moves the ship by the finger's travel, from
+   * wherever the finger went down. An absolute target parks the ship under the thumb,
+   * which is exactly where the player cannot see it. `dx`/`dy` accumulate in view units
+   * until the cartridge takes them with `consumeDrag`.
+   */
+  const pointer = { active: false, id: null, dx: 0, dy: 0, lastX: 0, lastY: 0 };
   const state = { held, pointer, usingTouch: false, axis: { x: 0, y: 0 } };
 
   const refreshAxis = () => {
@@ -56,27 +65,27 @@ export function createInput(canvas, toView, { bindings = {}, bufferTime = DEFAUL
     refreshAxis();
   };
 
-  const TOUCH_Y_OFFSET = -34;
-  const setPointer = (e) => {
-    const p = toView(e.clientX, e.clientY);
-    pointer.set = true;
-    pointer.x = p.x;
-    pointer.y = p.y + TOUCH_Y_OFFSET;
-  };
-
   const onPointerDown = (e) => {
     if (e.pointerType === 'mouse') return;
+    // A second finger is ignored rather than taking over, so a resting thumb cannot steal
+    // the ship mid-dodge.
+    if (pointer.active) return;
     pointer.id = e.pointerId;
     pointer.active = true;
+    pointer.lastX = e.clientX;
+    pointer.lastY = e.clientY;
     state.usingTouch = true;
     canvas.setPointerCapture(e.pointerId);
-    setPointer(e);
     e.preventDefault();
   };
 
   const onPointerMove = (e) => {
     if (e.pointerId !== pointer.id) return;
-    setPointer(e);
+    const k = viewport.unitsPerPixel() * TOUCH_SENSITIVITY;
+    pointer.dx += (e.clientX - pointer.lastX) * k;
+    pointer.dy += (e.clientY - pointer.lastY) * k;
+    pointer.lastX = e.clientX;
+    pointer.lastY = e.clientY;
     e.preventDefault();
   };
 
@@ -112,9 +121,21 @@ export function createInput(canvas, toView, { bindings = {}, bufferTime = DEFAUL
       return true;
     },
 
+    /** The finger's travel since the last call, in view units. */
+    consumeDrag() {
+      const d = { x: pointer.dx, y: pointer.dy };
+      pointer.dx = 0;
+      pointer.dy = 0;
+      return d;
+    },
+
     /** Ages the buffer and clears one-frame presses. Call at the end of each step. */
     endStep(dt) {
       pressed.clear();
+      // Travel nobody took this step (a menu, a pause) is dropped, or the ship would jump
+      // by all of it on resume.
+      pointer.dx = 0;
+      pointer.dy = 0;
       for (const [action, t] of buffered) {
         const next = t - dt;
         if (next <= 0) buffered.delete(action);
@@ -124,7 +145,8 @@ export function createInput(canvas, toView, { bindings = {}, bufferTime = DEFAUL
 
     clear() {
       releaseAll();
-      pointer.set = false;
+      pointer.dx = 0;
+      pointer.dy = 0;
       pointer.active = false;
       pointer.id = null;
     },

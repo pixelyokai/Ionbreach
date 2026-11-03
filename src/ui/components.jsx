@@ -94,7 +94,10 @@ export function Button({ className, variant, size, children, ...props }) {
  */
 export function MenuButton({ className, value, children, ...props }) {
   return (
-    <Button className={cn('w-full justify-between gap-6 text-left', className)} {...props}>
+    <Button
+      className={cn('w-full justify-between gap-6 text-left max-sm:gap-3 max-sm:whitespace-normal', className)}
+      {...props}
+    >
       <span>{children}</span>
       {value != null && <span className="text-primary">{value}</span>}
     </Button>
@@ -190,14 +193,15 @@ export function Modal({
         <AlertDialog.Content
           className={cn(
             'retro fixed top-1/2 left-1/2 z-[61] w-[min(92vw,620px)] -translate-x-1/2 -translate-y-1/2',
-            'panel-texture max-h-[92vh] border-y-6 border-ring bg-card text-card-foreground',
+            'panel-texture max-h-[92dvh] border-y-6 border-ring bg-card text-card-foreground',
             className,
           )}
         >
           <div
             className={cn(
-              'relative z-[1] flex max-h-[calc(92vh-12px)] flex-col items-center gap-6',
-              'overflow-y-auto p-10 pb-[60px] text-center',
+              'relative z-[1] flex max-h-[calc(92dvh-12px)] flex-col items-center gap-6',
+              'touch-pan-y overflow-y-auto overscroll-contain p-10 pb-[60px] text-center',
+              'max-sm:px-5 max-sm:pt-7 max-sm:pb-10 short:gap-4 short:py-6',
               contentClassName,
             )}
           >

@@ -54,16 +54,20 @@ function tileTerrain(ctx, name, offset) {
   const start = Math.floor(offset / w);
   const shift = offset - start * w;
 
-  for (let i = 0, x = -shift; x < VIEW_W; i++, x += w) {
-    const mirrored = (start + i) % 2 !== 0;
-    if (mirrored) {
-      ctx.save();
-      ctx.translate(Math.round(x) + w, 0);
-      ctx.scale(-1, 1);
-      ctx.drawImage(s.img, 0, 0);
-      ctx.restore();
-    } else {
-      ctx.drawImage(s.img, Math.round(x), 0);
+  // Stacked as well when a portrait field is taller than one plate - that is the axis the
+  // art was drawn to tile along.
+  for (let y = 0; y < VIEW_H; y += s.fh) {
+    for (let i = 0, x = -shift; x < VIEW_W; i++, x += w) {
+      const mirrored = (start + i) % 2 !== 0;
+      if (mirrored) {
+        ctx.save();
+        ctx.translate(Math.round(x) + w, y);
+        ctx.scale(-1, 1);
+        ctx.drawImage(s.img, 0, 0);
+        ctx.restore();
+      } else {
+        ctx.drawImage(s.img, Math.round(x), y);
+      }
     }
   }
 }

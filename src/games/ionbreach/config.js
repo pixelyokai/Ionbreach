@@ -11,25 +11,29 @@ export const PLAYER_ZONE_FRACTION = 0.6;
 export let PLAYER_ZONE_W = Math.round(VIEW_W * PLAYER_ZONE_FRACTION);
 
 // The CRT mask curves inwards at the corners, which is exactly where a HUD wants to sit.
-// Anything drawn into the canvas that must stay readable keeps inside this inset.
+// Anything drawn into the canvas that must stay readable keeps inside this inset. On a
+// phone the inset also clears the notch and the home bar.
 export let SAFE_X = 0;
 export let SAFE_Y = 0;
 
-// The terrain plate is 272px tall, so the field must not exceed it.
+// The terrain plate is 272px tall. A landscape field stays inside it; a portrait phone's
+// field is taller, and the background stacks the plate to cover it.
 export const RESOLUTION = {
   height: 260,
   minHeight: 180,
   maxHeight: 272,
+  // A portrait phone trades height for width until the field is at least this wide.
+  minWidth: 240,
   minAspect: 4 / 3,
   maxAspect: 2.4,
 };
 
-export function syncView(w, h) {
+export function syncView({ w, h, inset }) {
   VIEW_W = w;
   VIEW_H = h;
   PLAYER_ZONE_W = Math.round(VIEW_W * PLAYER_ZONE_FRACTION);
-  SAFE_X = Math.round(VIEW_W * 0.05);
-  SAFE_Y = Math.round(VIEW_H * 0.055);
+  SAFE_X = Math.max(Math.round(VIEW_W * 0.05), Math.max(inset.left, inset.right) + 4);
+  SAFE_Y = Math.max(Math.round(Math.min(VIEW_H, 272) * 0.055), Math.max(inset.top, inset.bottom) + 4);
 }
 
 // Fixed timestep for the simulation, so a 120Hz display plays at the same speed as 60Hz.

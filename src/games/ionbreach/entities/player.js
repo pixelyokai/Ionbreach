@@ -48,18 +48,19 @@ export function updatePlayer(p, dt, input, onShoot) {
   p.muzzle = Math.max(0, p.muzzle - dt);
   p.thrustAnim += dt;
 
-  const { axis, pointer, usingTouch } = input.state;
+  const { axis, usingTouch } = input.state;
+  const drag = input.consumeDrag();
 
-  if (usingTouch && pointer.set) {
-    // Touch: the ship eases toward the latched target rather than snapping, which keeps
-    // the movement readable and stops jitter from becoming input.
-    const tx = clamp(pointer.x, MARGIN + SHIP_W / 2, PLAYER_ZONE_W);
-    const ty = clamp(pointer.y, MARGIN + SHIP_H / 2, VIEW_H - MARGIN - SHIP_H / 2);
-    const k = 1 - Math.pow(0.0008, dt);
-    p.vx = (tx - p.x) * 12;
-    p.vy = (ty - p.y) * 12;
-    p.x += (tx - p.x) * k;
-    p.y += (ty - p.y) * k;
+  if (usingTouch) {
+    // Touch: the ship follows the finger's travel rather than its position, so the finger
+    // can sit anywhere on the glass. Velocity is kept only to pick the banking frame.
+    p.x += drag.x;
+    p.y += drag.y;
+    // Smoothed, since pointer events and simulation steps do not arrive in lockstep.
+    if (dt > 0) {
+      p.vx += (drag.x / dt - p.vx) * 0.5;
+      p.vy += (drag.y / dt - p.vy) * 0.5;
+    }
   } else {
     const ax = axis.x * PLAYER.accel;
     const ay = axis.y * PLAYER.accel;

@@ -37,6 +37,9 @@
   --ring: oklch(0.7 0.15 55);
 }
 
+/* A phone held sideways: the menus tighten so more of a panel fits without scrolling. */
+@custom-variant short (@media (max-height: 480px));
+
 @theme inline {
   --font-pixel: 'Press Start 2P', ui-monospace, monospace;
 

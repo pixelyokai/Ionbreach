@@ -26,7 +26,7 @@ export async function mountCartridge(cart, { canvas, ctx, ui, exit }) {
   assertContract(cart);
 
   const viewport = createViewport(canvas, ctx, cart.resolution);
-  const input = createInput(canvas, viewport.toView, {
+  const input = createInput(canvas, viewport, {
     bindings: cart.bindings ?? {},
     bufferTime: cart.inputBuffer,
   });

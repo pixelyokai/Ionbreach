@@ -11,6 +11,14 @@
   box-sizing: border-box;
 }
 
+/* Read back by core/canvas.js, so the HUD drawn into the canvas clears the notch too. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+}
+
 html,
 body {
   margin: 0;
@@ -181,19 +189,38 @@ canvas#stage {
   100% { transform: translate3d(-7rem, 0, 0); }
 }
 
-/* On a small screen the grain and bloom are only in the way; the corners stay. */
-@media (max-width: 720px) {
-  .grain,
-  .gloom {
+/**
+ * Mobile: no tube. The frame's corners eat a phone's play field and the scanlines fight a
+ * small, dense screen, so the game goes edge to edge instead. The screen is pinned to the
+ * viewport, which also keeps iOS from rubber-banding the page under a drag.
+ *
+ * The query is MOBILE_QUERY in core/canvas.js; the two must match.
+ */
+.touch-only {
+  display: none;
+}
+
+@media (max-width: 720px), (pointer: coarse) {
+  .scanlines,
+  .gloom,
+  .vignette,
+  .grain {
     display: none;
   }
 
-  .scanlines::after {
-    background-size: 100% 0.4vh;
+  body {
+    position: fixed;
+    inset: 0;
   }
 
-  .scanlines::before {
-    opacity: 0.5;
+  .screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+  }
+
+  .touch-only {
+    display: inline-flex;
   }
 }
 

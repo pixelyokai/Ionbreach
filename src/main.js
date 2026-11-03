@@ -22,6 +22,9 @@ const onFirstGesture = () => unlockAudio();
 window.addEventListener('pointerdown', onFirstGesture, { once: true });
 window.addEventListener('keydown', onFirstGesture, { once: true });
 
+// iOS Safari ignores user-scalable=no; without this a pinch zooms the whole console.
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+
 /**
  * There is one cartridge, and its own title screen is the landing screen, so "/" mounts
  * the game rather than a shelf with a single item on it. The router stays because the
