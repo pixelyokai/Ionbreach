@@ -1,5 +1,6 @@
 import { StrictMode, useEffect, useState, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import {
   Button, Card, CardTitle, Frame, Label, LEDE_GAP, MenuButton, Modal, Score,
 } from './components.jsx';
@@ -423,6 +424,7 @@ export function mountUi(container, bridge) {
   root.render(
     <StrictMode>
       <Overlay bridge={bridge} />
+      <Analytics />
     </StrictMode>,
   );
   return () => root.unmount();
